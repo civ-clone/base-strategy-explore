@@ -1,4 +1,6 @@
-import { Horseman, Warrior } from '@civ-clone/civ1-unit/Units';
+import { Horseman, Trireme, Warrior } from '@civ-clone/civ1-unit/Units';
+import Action from '@civ-clone/core-unit/Action';
+import Knowledge from '@civ-clone/base-strategy-ai/lib/Knowledge';
 import testGame, { knowledge } from './lib/testGame';
 import Explore from '../Strategies/Unit/Explore';
 import PlayerAction from '@civ-clone/core-player/PlayerAction';
@@ -82,5 +84,29 @@ describe('Explore', (): void => {
     expect(unit.tile().x()).to.equal(1);
     expect(memory.unitPathData.get(unit)?.end().x()).to.equal(10);
     expect(createMemory().unitPathData.size).to.equal(0);
+  });
+
+  it('should bring a ship that must end its turn by the coast back to it with its last move, rather than hand it back', async (): Promise<void> => {
+    // Land down the left, ocean beyond: only the column next to the land is coast.
+    const { addPlayer, addUnit, dependencies } = await testGame(
+        '1G4O1G4O1G4O',
+        3,
+        5
+      ),
+      player = addPlayer((tile: Tile): boolean => tile.x() <= 2),
+      unit = addUnit(Trireme, player, 2, 1),
+      // Like Civ1's Trireme: it ends a turn on the coast, or has a move to spare.
+      coastal: Knowledge = {
+        ...knowledge,
+        canReturnAfter: (dependencies, player, unit, action: Action) =>
+          action.to().isCoast() || unit.moves().value() > 1,
+      };
+
+    unit.moves().set(1);
+
+    expect(
+      new Explore(dependencies, coastal).order(new UnitOrder(player, unit))
+    ).true;
+    expect(unit.tile().x()).to.equal(1);
   });
 });

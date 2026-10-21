@@ -9,5 +9,6 @@ export declare class Explore extends AIStrategy implements OrderStrategy {
   attempt(action: PlayerAction): boolean;
   order(action: UnitOrder): boolean;
   private step;
+  private canStay;
 }
 export default Explore;

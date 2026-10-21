@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@civ-clone/base-strategy-ai": "^0.1.0",
+    "@civ-clone/base-unit-action-no-orders": "^0.1.0",
     "@civ-clone/base-unit-type-fortifiable": "^0.1.0",
     "@civ-clone/base-unit-type-land": "^0.1.0",
     "@civ-clone/base-unit-type-naval": "^0.1.0",
