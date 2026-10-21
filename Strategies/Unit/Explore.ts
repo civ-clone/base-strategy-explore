@@ -8,6 +8,7 @@ import AIStrategy from '@civ-clone/base-strategy-ai/Strategies/lib/AIStrategy';
 import Action from '@civ-clone/core-unit/Action';
 import { Mission } from '@civ-clone/base-strategy-ai/lib/Unit/mission';
 import Memory from '@civ-clone/base-strategy-ai/lib/Memory';
+import NoOrders from '@civ-clone/base-unit-action-no-orders/NoOrders';
 import { OrderStrategy } from '@civ-clone/base-strategy-ai/Strategies/lib/OrderStrategy';
 import Player from '@civ-clone/core-player/Player';
 import PlayerAction from '@civ-clone/core-player/PlayerAction';
@@ -119,11 +120,14 @@ export class Explore extends AIStrategy implements OrderStrategy {
     return true;
   }
 
-  // The best step for exploring, by the exploring terms alone, if any is worth taking: takes it and returns `true`.
+  // The best step for exploring, by the exploring terms alone, among those the unit could come back from, if any is
+  //  worth taking: takes it and returns `true`. With none, a unit that couldn't safely end its turn where it is (a
+  //  Trireme away from the coast with its last move) takes the best step it could come back from instead, worth
+  //  anything or not, rather than be handed back.
   private step(player: Player, memory: Memory, unit: Unit): boolean {
     const dependencies = this.dependencies(),
       knowledge = this.knowledge(),
-      [best] = unit
+      steps = unit
         .tile()
         .getNeighbours()
         .map((tile: Tile): [Tile, Action | undefined, number] => {
@@ -139,19 +143,21 @@ export class Explore extends AIStrategy implements OrderStrategy {
 
           return [tile, move, move ? scoreExploration(context) : 0];
         })
-        .filter(([, move, score]): boolean => move !== undefined && score > 0)
+        .filter(
+          ([, move]): boolean =>
+            move !== undefined &&
+            knowledge.canReturnAfter(dependencies, player, unit, move)
+        )
         // Stable, so equal scores keep the neighbours' order: no random draws on the player's behalf.
-        .sort(([, , a], [, , b]): number => b - a);
+        .sort(([, , a], [, , b]): number => b - a),
+      [best] = steps.filter(([, , score]): boolean => score > 0),
+      [safest] = best === undefined && !this.canStay(player, unit) ? steps : [];
 
-    if (!best) {
+    if (!best && !safest) {
       return false;
     }
 
-    const [tile, move] = best;
-
-    if (!knowledge.canReturnAfter(dependencies, player, unit, move!)) {
-      return false;
-    }
+    const [tile, move] = best ?? safest;
 
     const lastMoves = memory.lastUnitMoves.get(unit) || [];
 
@@ -161,6 +167,18 @@ export class Explore extends AIStrategy implements OrderStrategy {
     unit.action(move!);
 
     return true;
+  }
+
+  // Whether `unit` could end its turn where it is, by the ruleset's judgement.
+  private canStay(player: Player, unit: Unit): boolean {
+    const dependencies = this.dependencies();
+
+    return this.knowledge().canReturnAfter(
+      dependencies,
+      player,
+      unit,
+      new NoOrders(unit.tile(), unit.tile(), unit, dependencies.ruleRegistry)
+    );
   }
 }
 

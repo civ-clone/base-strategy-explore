@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Explore = exports.BLOCKED_LIMIT = exports.PATH_TRIES = void 0;
 const AIStrategy_1 = require("@civ-clone/base-strategy-ai/Strategies/lib/AIStrategy");
+const NoOrders_1 = require("@civ-clone/base-unit-action-no-orders/NoOrders");
 const UnitOrder_1 = require("@civ-clone/base-strategy-ai/PlayerActions/UnitOrder");
 const enemyAdjacent_1 = require("@civ-clone/base-strategy-ai/lib/Unit/enemyAdjacent");
 const explore_1 = require("../../lib/Unit/explore");
@@ -70,30 +71,36 @@ class Explore extends AIStrategy_1.default {
         }
         return true;
     }
-    // The best step for exploring, by the exploring terms alone, if any is worth taking: takes it and returns `true`.
+    // The best step for exploring, by the exploring terms alone, among those the unit could come back from, if any is
+    //  worth taking: takes it and returns `true`. With none, a unit that couldn't safely end its turn where it is (a
+    //  Trireme away from the coast with its last move) takes the best step it could come back from instead, worth
+    //  anything or not, rather than be handed back.
     step(player, memory, unit) {
-        const dependencies = this.dependencies(), knowledge = this.knowledge(), [best] = unit
+        const dependencies = this.dependencies(), knowledge = this.knowledge(), steps = unit
             .tile()
             .getNeighbours()
             .map((tile) => {
             const context = (0, scoreExploration_1.moveContext)(dependencies, player, memory, knowledge, unit, tile), [move] = (0, followPath_1.peacefulMoves)(context.actions);
             return [tile, move, move ? (0, scoreExploration_1.scoreExploration)(context) : 0];
         })
-            .filter(([, move, score]) => move !== undefined && score > 0)
+            .filter(([, move]) => move !== undefined &&
+            knowledge.canReturnAfter(dependencies, player, unit, move))
             // Stable, so equal scores keep the neighbours' order: no random draws on the player's behalf.
-            .sort(([, , a], [, , b]) => b - a);
-        if (!best) {
+            .sort(([, , a], [, , b]) => b - a), [best] = steps.filter(([, , score]) => score > 0), [safest] = best === undefined && !this.canStay(player, unit) ? steps : [];
+        if (!best && !safest) {
             return false;
         }
-        const [tile, move] = best;
-        if (!knowledge.canReturnAfter(dependencies, player, unit, move)) {
-            return false;
-        }
+        const [tile, move] = best !== null && best !== void 0 ? best : safest;
         const lastMoves = memory.lastUnitMoves.get(unit) || [];
         lastMoves.push(tile);
         memory.lastUnitMoves.set(unit, lastMoves.slice(-50));
         unit.action(move);
         return true;
+    }
+    // Whether `unit` could end its turn where it is, by the ruleset's judgement.
+    canStay(player, unit) {
+        const dependencies = this.dependencies();
+        return this.knowledge().canReturnAfter(dependencies, player, unit, new NoOrders_1.default(unit.tile(), unit.tile(), unit, dependencies.ruleRegistry));
     }
 }
 exports.Explore = Explore;
