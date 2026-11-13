@@ -7,7 +7,7 @@ import {
 } from '@civ-clone/base-strategy-ai/lib/actionLookup';
 import Action from '@civ-clone/core-unit/Action';
 import Dependencies from '@civ-clone/base-strategy-ai/lib/Dependencies';
-import Fortifiable from '@civ-clone/base-unit-type-fortifiable/Fortifiable';
+import Fortifies from '@civ-clone/base-unit-trait-fortifies/Fortifies';
 import Knowledge from '@civ-clone/base-strategy-ai/lib/Knowledge';
 import Memory from '@civ-clone/base-strategy-ai/lib/Memory';
 import Player from '@civ-clone/core-player/Player';
@@ -51,7 +51,8 @@ export const moveContext = (
 });
 
 // -1, ruling the step out, if the unit couldn't get back to safety after it, or there's nothing to do there but stand
-//  down. Otherwise `null`, and the step is scored.
+//  down: no action, only "no orders", or for a unit that `Fortifies`, only fortifying or "no orders". Otherwise `null`,
+//  and the step is scored.
 export const moveGate = ({
   dependencies,
   player,
@@ -72,7 +73,7 @@ export const moveGate = ({
   if (
     !actions.length ||
     (actions.length === 1 && noOrders) ||
-    (unit instanceof Fortifiable && actions.length === 2 && fortify && noOrders)
+    (unit.hasTrait(Fortifies) && actions.length === 2 && fortify && noOrders)
   ) {
     return -1;
   }
