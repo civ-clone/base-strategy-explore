@@ -7,11 +7,12 @@ import {
 } from '@civ-clone/base-strategy-ai/lib/Unit/mission';
 import Land from '@civ-clone/base-unit-type-land/Land';
 import Naval from '@civ-clone/base-unit-type-naval/Naval';
+import { isA } from '@civ-clone/core-unit/traits';
 
 export const exploreLand: Mission = (dependencies, memory, unit) => {
   const { landTilesToExplore } = memory.targets;
 
-  if (!(unit instanceof Land && landTilesToExplore.length > 0)) {
+  if (!(isA(unit, Land) && landTilesToExplore.length > 0)) {
     return false;
   }
 
@@ -27,7 +28,7 @@ export const exploreLand: Mission = (dependencies, memory, unit) => {
 export const exploreSea: Mission = (dependencies, memory, unit) => {
   const { seaTilesToExplore } = memory.targets;
 
-  if (!(unit instanceof Naval && seaTilesToExplore.length > 0)) {
+  if (!(isA(unit, Naval) && seaTilesToExplore.length > 0)) {
     return false;
   }
 
